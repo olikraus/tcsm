@@ -1,6 +1,10 @@
 
 # Magic: The Gathering, Fan-Content Policy
 
+This project is independed from any trading card game, however it was mostly tested
+and for "Magic: The Gathering" (MTG). As a consequence parts of this projects are
+related to Wizards Fan-Content Policy:
+
 "tcsm" is unofficial Fan Content permitted under the Fan Content Policy. 
 Not approved/endorsed by Wizards. Portions of the materials used are 
 property of Wizards of the Coast. ©Wizards of the Coast LLC.
