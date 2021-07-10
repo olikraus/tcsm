@@ -7,3 +7,5 @@ Directories:
   card sorting machine only the STL files are required
  * png: Preview pictures of the OpenSCAD elements
  
+ ![https://raw.githubusercontent.com/olikraus/tcsm/main/hardware/png/show_all_front_right.png](https://raw.githubusercontent.com/olikraus/tcsm/main/hardware/png/show_all_front_right.png)
+ 

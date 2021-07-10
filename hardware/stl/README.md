@@ -13,6 +13,7 @@ One trading card sorting machine requires:
  * Layer height can be up to 0.3mm
  * Infill 30%
  
+ ![https://raw.githubusercontent.com/olikraus/tcsm/main/hardware/png/show_all_front_right.png](https://raw.githubusercontent.com/olikraus/tcsm/main/hardware/png/show_all_front_right.png)
  
  
  
