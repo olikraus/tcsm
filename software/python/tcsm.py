@@ -56,6 +56,49 @@ jpeg_full_image_quality=10      # 0..100
 
 
 parser = argparse.ArgumentParser(description='Trading Card Sorting Machine Controller', formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument('-c',
+                    default='help',
+                    const='help',
+                    nargs='?',
+                    choices=['sort', 'eb', 'em', 'sm', 'tc', 'help'],
+                    help='''Define command to execute (default: %(default)s)
+    sort: Activate the main purpose of this tool: Sort trading cards
+    eb: Eject a card into sorter and move the card into a basket (uses -b and -r)
+    em: Eject motor manual control (-ems, -emt, -emd)
+    sm: Sorter motor manual control (-sms, -smt, -smd)
+    tc: test basket conditions b0c, b1c and b2c
+      The condition must be a legal python3 expression. Allowed variables in the conditions:
+        tc: Creature?           ta: Artifact?
+        ts: Sorcery?            ti: Instant?
+        tl: Land?               te: Enchantment?
+        tp: Planeswalker?
+        cmc: Converted mana cost
+        r: rarity 0=common, 1=uncommon, 2=rare, 3=mythic
+        cw: Is white card?      cb: Is black card?
+        cr: Is red card?        cg: Is green card?
+        cu: Is blue card?
+''')
+parser.add_argument('-log',  action='store', nargs='?',  default='tcsm.log', help='define log filename (default: %(default)s)')
+parser.add_argument('-b', 
+  action='store',
+  nargs='?', 
+  default=0,
+  const=0,
+  type=int,
+  help='target basket number')
+parser.add_argument('-r',  action='store', nargs='?',  default=1, const=1, type=int, help='repeat count (for -c em)')
+parser.add_argument('-b0c',  action='store', nargs='?',  default='tc', help='basket 0 condition (default: %(default)s)')
+parser.add_argument('-b1c',  action='store', nargs='?',  default='ts or ti or te', help='basket 1 condition (default: %(default)s)')
+parser.add_argument('-b2c',  action='store', nargs='?',  default='tl or ta', help='basket 2 condition (default: %(default)s)')
+parser.add_argument('-ems',  action='store', nargs='?',  default=20, const=0, type=int, help='eject motor speed (for -c em)')
+parser.add_argument('-emt',  action='store', nargs='?',  default=100, const=0, type=int, help='eject motor time in milliseconds (for -c em)')
+parser.add_argument('-emd',  action='store', nargs='?',  default=0, const=0, type=int, help='eject motor direction (for -c em)')
+parser.add_argument('-sms',  action='store', nargs='?',  default=20, const=0, type=int, help='sorter motor speed (for -c sm)')
+parser.add_argument('-smt',  action='store', nargs='?',  default=100, const=0, type=int, help='sorter motor time in milliseconds (for -c sm)')
+parser.add_argument('-smd',  action='store', nargs='?',  default=0, const=0, type=int, help='sorter motor direction (for -c sm)')
+
+
+args = parser.parse_args()
 
 
 # DRV8830
@@ -145,7 +188,7 @@ def card_eject():
 	time.sleep(0.1)
 
 def card_sort(basket):
-  dir = 1
+  dir = basket & 1
   # try to move the the card a little bit into the desired direction
   #motor_run(sorter_motor_adr,7,dir)
   #time.sleep(0.04)
@@ -313,8 +356,8 @@ def get_ocr_card_name(imagefile):
   ocr_name = " ".join(ocr_lines[line_index])
   
   # log some data to the log file
-  append_to_file("drv_and_cam.log", str(ocr_lines)+"\n")
-  append_to_file("drv_and_cam.log", str(ocr_hist)+": "+ ocr_name + "\n")
+  append_to_file(args.log, str(ocr_lines)+"\n")
+  append_to_file(args.log, str(ocr_hist)+": "+ ocr_name + "\n")
   return ocr_name
   
 # return a vector with the internal card id, the card name and the distance to the tesseract name
@@ -350,7 +393,7 @@ def find_card(carddic, ocr_name):
       print(c + "/"+ ocr_name+" "+str(d))
       #print(c.translate(t) + "/"+ ocr_name.translate(t))
       
-  append_to_file("drv_and_cam.log", "--> "+ smin + " (" + str(carddic[smin]) + ")\n")
+  append_to_file(args.log, "--> "+ smin + " (" + str(carddic[smin]) + ")\n")
   return [carddic[smin], smin, dmin]
 
 def eval_cond(cond, prop):
@@ -419,60 +462,11 @@ def sort_machine():
     #print( clean_str( cardv[1] ))
     basket_number = get_basket_number(card_prop[cardv[0]])
     print(basket_number)
-    card_sort(0)
-    append_to_file("drv_and_cam.log", "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)  )
+    card_sort(basket_number)
+    append_to_file(args.log, "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)+', basket: '+str(basket_number)  )
     
   camera.stop_preview()
 
-parser.add_argument('-c',
-                    default='help',
-                    const='help',
-                    nargs='?',
-                    choices=['sort', 'eb', 'em', 'sm', 'tc', 'help'],
-                    help='''Define command to execute (default: %(default)s)
-    sort: Activate the main purpose of this tool: Sort trading cards
-    eb: Eject a card into sorter and move the card into a basket (uses -b and -r)
-    em: Eject motor manual control (-ems, -emt, -emd)
-    sm: Sorter motor manual control (-sms, -smt, -smd)
-    tc: test basket conditions b0c, b1c and b2c
-      The condition must be a legal python3 expression. Allowed variables in the conditions:
-        tc: Creature?           ta: Artifact?
-        ts: Sorcery?            ti: Instant?
-        tl: Land?               te: Enchantment?
-        tp: Planeswalker?
-        cmc: Converted mana cost
-        r: rarity 0=common, 1=uncommon, 2=rare, 3=mythic
-        cw: Is white card?      cb: Is black card?
-        cr: Is red card?        cg: Is green card?
-        cu: Is blue card?
-''')
-parser.add_argument('-b', 
-  action='store',
-  nargs='?', 
-  default=0,
-  const=0,
-  type=int,
-  help='target basket number')
-parser.add_argument('-r',  action='store', nargs='?',  default=1, const=1, type=int, help='repeat count (for -c em)')
-parser.add_argument('-b0c',  action='store', nargs='?',  default='tc', help='basket 0 condition (default: %(default)s)')
-parser.add_argument('-b1c',  action='store', nargs='?',  default='ts or ti or te', help='basket 1 condition (default: %(default)s)')
-parser.add_argument('-b2c',  action='store', nargs='?',  default='tl or ta', help='basket 2 condition (default: %(default)s)')
-parser.add_argument('-ems',  action='store', nargs='?',  default=20, const=0, type=int, help='eject motor speed (for -c em)')
-parser.add_argument('-emt',  action='store', nargs='?',  default=100, const=0, type=int, help='eject motor time in milliseconds (for -c em)')
-parser.add_argument('-emd',  action='store', nargs='?',  default=0, const=0, type=int, help='eject motor direction (for -c em)')
-parser.add_argument('-sms',  action='store', nargs='?',  default=20, const=0, type=int, help='sorter motor speed (for -c sm)')
-parser.add_argument('-smt',  action='store', nargs='?',  default=100, const=0, type=int, help='sorter motor time in milliseconds (for -c sm)')
-parser.add_argument('-smd',  action='store', nargs='?',  default=0, const=0, type=int, help='sorter motor direction (for -c sm)')
-
-# parser.add_argument('eject')
-# parser.add_argument('sort')
-#parser.print_help()
-# args = parser.parse_args()
-# print(args)
-
-#sort_machine()
-
-args = parser.parse_args()
 if args.c == '':
   print("use -h to read the commandline help page");
 elif args.c == 'help':
