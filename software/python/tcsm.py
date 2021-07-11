@@ -61,11 +61,7 @@ parser.add_argument('-c',
                     default='help',
                     const='help',
                     nargs='?',
-<<<<<<< HEAD
                     choices=['sort', 'eb', 'em', 'sm', 'tc', 'cam', 'help'],
-=======
-                    choices=['sort', 'eb', 'em', 'sm', 'tc', 'help'],
->>>>>>> 885d0fcf844399c8581cd8477e535d3b374c9904
                     help='''Define command to execute (default: %(default)s)
     sort: Activate the main purpose of this tool: Sort trading cards
     eb: Eject a card into sorter and move the card into a basket (uses -b and -r)
@@ -361,7 +357,6 @@ def get_ocr_card_name(imagefile):
   ocr_lines = list(filter(lambda l : len(l) > 0, ocr_lines))       # remove lines which are now empty
   ocr_hist = list(map(lambda l : list(map(lambda s: len(s), l)), ocr_lines))  # replace all strings by their string length
   ocr_hist = list(map(lambda l : avg(l), ocr_hist))       # calculate the average word size
-<<<<<<< HEAD
   ocr_name = ""
   if len(ocr_hist) > 0:
     line_index = ocr_hist.index(max(ocr_hist))                  # get the line index with the highest average word size
@@ -371,14 +366,6 @@ def get_ocr_card_name(imagefile):
     append_to_file(args.log, str(ocr_lines)+"\n")
     append_to_file(args.log, str(ocr_hist)+": "+ ocr_name + "\n")
     
-=======
-  line_index = ocr_hist.index(max(ocr_hist))                  # get the line index with the highest average word size
-  ocr_name = " ".join(ocr_lines[line_index])
-  
-  # log some data to the log file
-  append_to_file(args.log, str(ocr_lines)+"\n")
-  append_to_file(args.log, str(ocr_hist)+": "+ ocr_name + "\n")
->>>>>>> 885d0fcf844399c8581cd8477e535d3b374c9904
   return ocr_name
   
 # return a vector with the internal card id, the card name and the distance to the tesseract name
@@ -489,7 +476,6 @@ def sort_machine():
     cardv = find_card(card_dic, ocr_name)
     t_find = time.time()
    
-<<<<<<< HEAD
     if cardv[0] >= 0:
       os.rename(strdt+'.jpg', strdt+'_'+clean_str( cardv[1] )+'.jpg')
       #print( cardv[1] )
@@ -500,15 +486,6 @@ def sort_machine():
       
     card_sort(basket_number)
     append_to_file(args.log, "cam: "+str(t_cam-t)+', ocr: ['+ocr_name+']/'+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)+', basket: '+str(basket_number)  )
-=======
-    os.rename(strdt+'.jpg', strdt+'_'+clean_str( cardv[1] )+'.jpg')
-    #print( cardv[1] )
-    #print( clean_str( cardv[1] ))
-    basket_number = get_basket_number(card_prop[cardv[0]])
-    print(basket_number)
-    card_sort(basket_number)
-    append_to_file(args.log, "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)+', basket: '+str(basket_number)  )
->>>>>>> 885d0fcf844399c8581cd8477e535d3b374c9904
     
   camera.stop_preview()
 
