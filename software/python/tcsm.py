@@ -54,8 +54,52 @@ sorter_motor_basket_2_3_time = 0.8      # time in seconds
 
 jpeg_full_image_quality=10      # 0..100
 
+quit_word = 'tcsm'
 
 parser = argparse.ArgumentParser(description='Trading Card Sorting Machine Controller', formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument('-c',
+                    default='help',
+                    const='help',
+                    nargs='?',
+                    choices=['sort', 'eb', 'em', 'sm', 'tc', 'cam', 'help'],
+                    help='''Define command to execute (default: %(default)s)
+    sort: Activate the main purpose of this tool: Sort trading cards
+    eb: Eject a card into sorter and move the card into a basket (uses -b and -r)
+    em: Eject motor manual control (-ems, -emt, -emd)
+    sm: Sorter motor manual control (-sms, -smt, -smd)
+    tc: test basket conditions b0c, b1c and b2c
+      The condition must be a legal python3 expression. Allowed variables in the conditions:
+        tc: Creature?           ta: Artifact?
+        ts: Sorcery?            ti: Instant?
+        tl: Land?               te: Enchantment?
+        tp: Planeswalker?
+        cmc: Converted mana cost
+        r: rarity 0=common, 1=uncommon, 2=rare, 3=mythic
+        cw: Is white card?      cb: Is black card?
+        cr: Is red card?        cg: Is green card?
+        cu: Is blue card?
+''')
+parser.add_argument('-log',  action='store', nargs='?',  default='tcsm.log', help='define log filename (default: %(default)s)')
+parser.add_argument('-b', 
+  action='store',
+  nargs='?', 
+  default=0,
+  const=0,
+  type=int,
+  help='target basket number')
+parser.add_argument('-r',  action='store', nargs='?',  default=1, const=1, type=int, help='repeat count (for -c em)')
+parser.add_argument('-b0c',  action='store', nargs='?',  default='tc', help='basket 0 condition (default: %(default)s)')
+parser.add_argument('-b1c',  action='store', nargs='?',  default='ts or ti or te', help='basket 1 condition (default: %(default)s)')
+parser.add_argument('-b2c',  action='store', nargs='?',  default='tl or ta', help='basket 2 condition (default: %(default)s)')
+parser.add_argument('-ems',  action='store', nargs='?',  default=20, const=0, type=int, help='eject motor speed (for -c em)')
+parser.add_argument('-emt',  action='store', nargs='?',  default=100, const=0, type=int, help='eject motor time in milliseconds (for -c em)')
+parser.add_argument('-emd',  action='store', nargs='?',  default=0, const=0, type=int, help='eject motor direction (for -c em)')
+parser.add_argument('-sms',  action='store', nargs='?',  default=20, const=0, type=int, help='sorter motor speed (for -c sm)')
+parser.add_argument('-smt',  action='store', nargs='?',  default=100, const=0, type=int, help='sorter motor time in milliseconds (for -c sm)')
+parser.add_argument('-smd',  action='store', nargs='?',  default=0, const=0, type=int, help='sorter motor direction (for -c sm)')
+
+
+args = parser.parse_args()
 
 
 # DRV8830
@@ -125,7 +169,7 @@ def card_eject():
 	# motor_run(eject_motor_adr, 25, 1)
 	motor_run(eject_motor_adr, 25, 1)
 	time.sleep(0.1)
-	eject_motor_shake(10, 0.06, 0.08)
+	eject_motor_shake(10, 0.05, 0.09)
 	motor_run(eject_motor_adr, 25, 1)
 	# in parallel shake card in the sorter and pull back the second lowest card
 	#for i in range(6):
@@ -145,7 +189,7 @@ def card_eject():
 	time.sleep(0.1)
 
 def card_sort(basket):
-  dir = 1
+  dir = basket & 1
   # try to move the the card a little bit into the desired direction
   #motor_run(sorter_motor_adr,7,dir)
   #time.sleep(0.04)
@@ -271,7 +315,7 @@ def cam_capture(cam, imagename, fullimname):
   # write a low quality picture of the scanned card
   cv2.imwrite(fullimname, image,[cv2.IMWRITE_JPEG_QUALITY, jpeg_full_image_quality, cv2.IMWRITE_JPEG_LUMA_QUALITY, jpeg_full_image_quality]);
   #image = rawCapture.array;
-  image = image[0:135, 0:1279]
+  image = image[0:140, 0:1279]
   # https://stackoverflow.com/questions/9480013/image-processing-to-improve-tesseract-ocr-accuracy
   image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
   #(thresh, blackAndWhiteImage) = cv2.threshold(image, 120, 255, cv2.THRESH_BINARY)
@@ -279,7 +323,11 @@ def cam_capture(cam, imagename, fullimname):
   kernel = np.ones((3, 3), np.uint8)
   img = cv2.dilate(image, kernel, iterations=1)
   img = cv2.erode(img, kernel, iterations=1)	
-  img = cv2.adaptiveThreshold(cv2.medianBlur(img, 3), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 63, 4)
+  #cv2.imwrite('pre_'+imagename, img);
+  img = cv2.medianBlur(img, 3)
+  #cv2.imwrite('pre2_'+imagename, img);  
+  # the last argument: 0=lot of noise, 2: little bit noise, 4: no noise any more
+  img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 63, 2)
   
   cv2.imwrite('raw_'+imagename, image);
   cv2.imwrite(imagename, img);
@@ -309,16 +357,21 @@ def get_ocr_card_name(imagefile):
   ocr_lines = list(filter(lambda l : len(l) > 0, ocr_lines))       # remove lines which are now empty
   ocr_hist = list(map(lambda l : list(map(lambda s: len(s), l)), ocr_lines))  # replace all strings by their string length
   ocr_hist = list(map(lambda l : avg(l), ocr_hist))       # calculate the average word size
-  line_index = ocr_hist.index(max(ocr_hist))                  # get the line index with the highest average word size
-  ocr_name = " ".join(ocr_lines[line_index])
-  
-  # log some data to the log file
-  append_to_file("drv_and_cam.log", str(ocr_lines)+"\n")
-  append_to_file("drv_and_cam.log", str(ocr_hist)+": "+ ocr_name + "\n")
+  ocr_name = ""
+  if len(ocr_hist) > 0:
+    line_index = ocr_hist.index(max(ocr_hist))                  # get the line index with the highest average word size
+    ocr_name = " ".join(ocr_lines[line_index])
+    
+    # log some data to the log file
+    append_to_file(args.log, str(ocr_lines)+"\n")
+    append_to_file(args.log, str(ocr_hist)+": "+ ocr_name + "\n")
+    
   return ocr_name
   
 # return a vector with the internal card id, the card name and the distance to the tesseract name
 def find_card(carddic, ocr_name):
+  if ocr_name == "":
+    return [-1, 9999, ""]
   t = { 
   8209: 45, 8211:45, # convert dash
   48: 111, 79: 111, # convert zero and uppercase O to small o
@@ -350,7 +403,7 @@ def find_card(carddic, ocr_name):
       print(c + "/"+ ocr_name+" "+str(d))
       #print(c.translate(t) + "/"+ ocr_name.translate(t))
       
-  append_to_file("drv_and_cam.log", "--> "+ smin + " (" + str(carddic[smin]) + ")\n")
+  append_to_file(args.log, "--> "+ smin + " (" + str(carddic[smin]) + ")\n")
   return [carddic[smin], smin, dmin]
 
 def eval_cond(cond, prop):
@@ -363,21 +416,33 @@ def eval_cond(cond, prop):
   tp = prop["tp"]       # Planeswalker
   cmc = prop["c"]
   r = prop["r"]                 # rarity 0=common, 1=uncommon, 2=rare, 3=mythic
-  cw = "W" in prop["i"]
-  cb = "B" in prop["i"]
-  cr = "R" in prop["i"]
-  cg = "G" in prop["i"]
-  cu = "U" in prop["i"]
+  try:
+    cw = "W" in prop["i"]
+    cb = "B" in prop["i"]
+    cr = "R" in prop["i"]
+    cg = "G" in prop["i"]
+    cu = "U" in prop["i"]
+  except:
+    cw = False
+    cb = False
+    cr = False
+    cg = False
+    cu = False
+    
   #print('cmc='+str(cmc))
   return eval(cond)
 
 def get_basket_number(prop):
   if eval_cond(args.b0c, prop):
+    print(args.b0c + ' --> 0')
     return 0
   if eval_cond(args.b1c, prop):
+    print(args.b1c + ' --> 1')
     return 1
   if eval_cond(args.b2c, prop):
+    print(args.b2c + ' --> 2')
     return 2
+  print('No matching condition --> 3')
   return 3
   
   
@@ -387,21 +452,15 @@ def sort_machine():
 
 
   camera = PiCamera()
-
-  # camera.flash_mode = 'on'
   camera.start_preview()
   camera.exposure_mode = 'night'
-  # camera.exposure_compensation = 0
   camera.brightness = 60	# default: 50
   camera.contrast = 100     # default: 0
-  #camera.rotation = 0
-  #camera.resolution = (1280, 1024)
   camera.rotation = 90
   camera.resolution = (1024,1280)
-  #camera.resolution = (480,640)
 
 
-  for i in range(1):
+  for i in range(args.r):
     card_eject()
     time.sleep(0.4)
 
@@ -410,69 +469,26 @@ def sort_machine():
     cam_capture(camera, 'image.jpg', strdt+'.jpg')
     t_cam = time.time()
     ocr_name = get_ocr_card_name('image.jpg')
+    if ocr_name == quit_word:
+      print("no card visible")
+      break
     t_ocr = time.time()
     cardv = find_card(card_dic, ocr_name)
     t_find = time.time()
    
-    os.rename(strdt+'.jpg', strdt+'_'+clean_str( cardv[1] )+'.jpg')
-    #print( cardv[1] )
-    #print( clean_str( cardv[1] ))
-    basket_number = get_basket_number(card_prop[cardv[0]])
-    print(basket_number)
-    card_sort(0)
-    append_to_file("drv_and_cam.log", "cam: "+str(t_cam-t)+', ocr: '+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)  )
+    if cardv[0] >= 0:
+      os.rename(strdt+'.jpg', strdt+'_'+clean_str( cardv[1] )+'.jpg')
+      #print( cardv[1] )
+      #print( clean_str( cardv[1] ))
+      basket_number = get_basket_number(card_prop[cardv[0]])
+    else:
+      basket_number = 3
+      
+    card_sort(basket_number)
+    append_to_file(args.log, "cam: "+str(t_cam-t)+', ocr: ['+ocr_name+']/'+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)+', basket: '+str(basket_number)  )
     
   camera.stop_preview()
 
-parser.add_argument('-c',
-                    default='help',
-                    const='help',
-                    nargs='?',
-                    choices=['sort', 'eb', 'em', 'sm', 'tc', 'help'],
-                    help='''Define command to execute (default: %(default)s)
-    sort: Activate the main purpose of this tool: Sort trading cards
-    eb: Eject a card into sorter and move the card into a basket (uses -b and -r)
-    em: Eject motor manual control (-ems, -emt, -emd)
-    sm: Sorter motor manual control (-sms, -smt, -smd)
-    tc: test basket conditions b0c, b1c and b2c
-      The condition must be a legal python3 expression. Allowed variables in the conditions:
-        tc: Creature?           ta: Artifact?
-        ts: Sorcery?            ti: Instant?
-        tl: Land?               te: Enchantment?
-        tp: Planeswalker?
-        cmc: Converted mana cost
-        r: rarity 0=common, 1=uncommon, 2=rare, 3=mythic
-        cw: Is white card?      cb: Is black card?
-        cr: Is red card?        cg: Is green card?
-        cu: Is blue card?
-''')
-parser.add_argument('-b', 
-  action='store',
-  nargs='?', 
-  default=0,
-  const=0,
-  type=int,
-  help='target basket number')
-parser.add_argument('-r',  action='store', nargs='?',  default=1, const=1, type=int, help='repeat count (for -c em)')
-parser.add_argument('-b0c',  action='store', nargs='?',  default='tc', help='basket 0 condition (default: %(default)s)')
-parser.add_argument('-b1c',  action='store', nargs='?',  default='ts or ti or te', help='basket 1 condition (default: %(default)s)')
-parser.add_argument('-b2c',  action='store', nargs='?',  default='tl or ta', help='basket 2 condition (default: %(default)s)')
-parser.add_argument('-ems',  action='store', nargs='?',  default=20, const=0, type=int, help='eject motor speed (for -c em)')
-parser.add_argument('-emt',  action='store', nargs='?',  default=100, const=0, type=int, help='eject motor time in milliseconds (for -c em)')
-parser.add_argument('-emd',  action='store', nargs='?',  default=0, const=0, type=int, help='eject motor direction (for -c em)')
-parser.add_argument('-sms',  action='store', nargs='?',  default=20, const=0, type=int, help='sorter motor speed (for -c sm)')
-parser.add_argument('-smt',  action='store', nargs='?',  default=100, const=0, type=int, help='sorter motor time in milliseconds (for -c sm)')
-parser.add_argument('-smd',  action='store', nargs='?',  default=0, const=0, type=int, help='sorter motor direction (for -c sm)')
-
-# parser.add_argument('eject')
-# parser.add_argument('sort')
-#parser.print_help()
-# args = parser.parse_args()
-# print(args)
-
-#sort_machine()
-
-args = parser.parse_args()
 if args.c == '':
   print("use -h to read the commandline help page");
 elif args.c == 'help':
@@ -499,5 +515,16 @@ elif args.c == 'tc':
   print(eval_cond(args.b1c, card_prop[0]));
   print(args.b2c)
   print(eval_cond(args.b2c, card_prop[0]));
-  
+elif args.c == 'cam':
+  camera = PiCamera()
+  camera.start_preview()
+  camera.exposure_mode = 'night'
+  camera.brightness = 60	# default: 50
+  camera.contrast = 100     # default: 0
+  camera.rotation = 90
+  camera.resolution = (1024,1280)
+  #camera.resolution = (768,1024)
+  cam_capture(camera, 'image.jpg', 'cam_image.jpg')
+  ocr_name = get_ocr_card_name('image.jpg')
+  print(ocr_name)  
   
