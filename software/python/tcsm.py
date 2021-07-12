@@ -350,6 +350,7 @@ def get_ocr_card_name(imagefile):
   ocr_result = ocr_result.replace(".", " ")          # replace  dot with blank
   ocr_result = ocr_result.replace("@", "")          # remove @
   
+  # maybe add a bonus for the number of lower case letters
   # find the line which contains the card name with highest probability
   ocr_lines = ocr_result.split("\n")      # split into lines
   ocr_lines = list(map(lambda s: s.split(" "), ocr_lines))        # split lines into words
