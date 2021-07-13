@@ -42,6 +42,7 @@ import argparse
 eject_motor_adr = 0x65
 sorter_motor_adr = 0x60
 
+
 eject_motor_shake_speed = 40     # 0..63
 eject_motor_throw_out_speed = 50 # 0..63
 eject_motor_throw_out_time = 0.27
