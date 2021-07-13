@@ -328,7 +328,7 @@ def cam_capture(cam, imagename, fullimname):
   img = cv2.medianBlur(img, 3)
   #cv2.imwrite('pre2_'+imagename, img);  
   # the last argument: 0=lot of noise, 2: little bit noise, 4: no noise any more
-  img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 63, 2)
+  #img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 63, 2)
   
   cv2.imwrite('raw_'+imagename, image);
   cv2.imwrite(imagename, img);
