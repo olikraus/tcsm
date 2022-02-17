@@ -100,11 +100,37 @@ parser.add_argument('-emd',  action='store', nargs='?',  default=0, const=0, typ
 parser.add_argument('-sms',  action='store', nargs='?',  default=20, const=0, type=int, help='sorter motor speed (for -c sm)')
 parser.add_argument('-smt',  action='store', nargs='?',  default=100, const=0, type=int, help='sorter motor time in milliseconds (for -c sm)')
 parser.add_argument('-smd',  action='store', nargs='?',  default=0, const=0, type=int, help='sorter motor direction (for -c sm)')
-parser.add_argument('-fs',  action='store', nargs='?',  default='', help='use python flask server for card identification (e.g. http://1.2.3.4:5000/mtg_server)')
+parser.add_argument('-key',  action='store', nargs='?',  default='.', help='ocr.space api key')
 
 
 args = parser.parse_args()
 
+def ocr_space_file(filename, overlay=False, api_key='helloworld', language='eng'):
+    """ OCR.space API request with local file.
+        Python3.5 - not tested on 2.7
+    :param filename: Your file path & name.
+    :param overlay: Is OCR.space overlay required in your response.
+                    Defaults to False.
+    :param api_key: OCR.space API key.
+                    Defaults to 'helloworld'.
+    :param language: Language code to be used in OCR.
+                    List of available language codes can be found on https://ocr.space/OCRAPI
+                    Defaults to 'en'.
+    :return: Result in JSON format.
+    """
+
+    payload = {'isOverlayRequired': overlay,
+               'apikey': api_key,
+               'language': language,
+               }
+    with open(filename, 'rb') as f:
+        r = requests.post('https://api.ocr.space/parse/image',
+                          files={filename: f},
+                          data=payload,
+                          )
+    #return r.content.decode()
+    j = r.json();
+    return j['ParsedResults'][0]['ParsedText'].partition('\n')[0]
 
 # DRV8830
 #	Register 0: 	vvvvvvbb
@@ -154,7 +180,9 @@ def clean_str(s):
       t += c
     elif c >= 'a' and c <= 'z':
       t+= c
-    else:
+    elif c == ' ':
+      t+= c
+    elif c >= ' ':
       t+='_'
   return t
   
@@ -481,9 +509,14 @@ def sort_machine():
     cam_capture(camera, 'image.jpg', strdt+'.jpg')
     t_cam = time.time()
     
-    if args.fs != '':
-      print( 'flask server request '+args.fs )      
-      cardv = requests.post(args.fs, json = file2json("image.jpg")).json()
+    if args.key != '.':
+      ocr_name = clean_str(ocr_space_file(filename='image.jpg', api_key=args.key))
+      if ocr_name == quit_word:
+        print("no card visible")
+        break
+      t_ocr = time.time()
+      cardv = find_card(card_dic, ocr_name)
+      t_find = time.time()
       print( cardv[1] )
     else:
       ocr_name = get_ocr_card_name('image.jpg')
