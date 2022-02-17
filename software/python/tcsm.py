@@ -449,8 +449,6 @@ def get_basket_number(prop):
   
   
 def sort_machine():
-  card_dic = read_json('mtg_card_dic.json')
-  card_prop = read_json('mtg_card_prop.json')
 
 
   camera = PiCamera()
@@ -461,6 +459,8 @@ def sort_machine():
   camera.rotation = 90
   camera.resolution = (1024,1280)
 
+  card_dic = read_json('mtg_card_dic.json')
+  card_prop = read_json('mtg_card_prop.json')
 
   for i in range(args.r):
     card_eject()
