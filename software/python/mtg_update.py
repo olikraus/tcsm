@@ -145,7 +145,7 @@ def cond_query_and_write_cards(setcode):
   iscards = os.path.exists(get_cards_filename(setcode))
   isprops = os.path.exists(get_props_filename(setcode))
   if iscards == False or isprops == False:
-    time.sleep(3)
+    time.sleep(1)
     query_and_write_cards(setcode)
   else:
     print("set '%s' skipped" % (setcode) )
