@@ -35,6 +35,7 @@ except ImportError as err:
 import time
 import argparse
 import base64
+import requests
 
 
 
@@ -99,7 +100,7 @@ parser.add_argument('-emd',  action='store', nargs='?',  default=0, const=0, typ
 parser.add_argument('-sms',  action='store', nargs='?',  default=20, const=0, type=int, help='sorter motor speed (for -c sm)')
 parser.add_argument('-smt',  action='store', nargs='?',  default=100, const=0, type=int, help='sorter motor time in milliseconds (for -c sm)')
 parser.add_argument('-smd',  action='store', nargs='?',  default=0, const=0, type=int, help='sorter motor direction (for -c sm)')
-parser.add_argument('-fs',  action='store', nargs='?',  default='http://localost:5000/mtg_server', help='use python flask server for card identification (default: %(default)s)')
+parser.add_argument('-fs',  action='store', nargs='?',  default='', help='use python flask server for card identification (e.g. http://1.2.3.4:5000/mtg_server)')
 
 
 args = parser.parse_args()
