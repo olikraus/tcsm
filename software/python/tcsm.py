@@ -482,7 +482,8 @@ def sort_machine():
     t_cam = time.time()
     
     if args.fs != '':
-      cardv = requests.post("http://192.168.178.70:5000/mtg_server", json = file2json("tcsm.jpg"))
+      print( 'flask server request '+args.fs )      
+      cardv = requests.post(args.fs, json = file2json("image.jpg")).json()
       print( cardv[1] )
     else:
       ocr_name = get_ocr_card_name('image.jpg')
