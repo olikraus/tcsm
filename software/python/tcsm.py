@@ -34,6 +34,7 @@ except ImportError as err:
   
 import time
 import argparse
+import base64
 
 
 
@@ -98,6 +99,7 @@ parser.add_argument('-emd',  action='store', nargs='?',  default=0, const=0, typ
 parser.add_argument('-sms',  action='store', nargs='?',  default=20, const=0, type=int, help='sorter motor speed (for -c sm)')
 parser.add_argument('-smt',  action='store', nargs='?',  default=100, const=0, type=int, help='sorter motor time in milliseconds (for -c sm)')
 parser.add_argument('-smd',  action='store', nargs='?',  default=0, const=0, type=int, help='sorter motor direction (for -c sm)')
+parser.add_argument('-fs',  action='store', nargs='?',  default='http://localost:5000/mtg_server', help='use python flask server for card identification (default: %(default)s)')
 
 
 args = parser.parse_args()
@@ -305,6 +307,13 @@ def read_json(filename):
   obj = json.load(f)
   f.close()
   return obj
+  
+def file2json(filename):
+  f = io.open(filename, "rb", encoding=None)
+  encoded_string = base64.b64encode(f.read()).decode('ascii')
+  f.close()
+  return json.dumps(encoded_string)
+  
 
 def cam_capture(cam, imagename, fullimname):
   rawCapture = PiRGBArray(cam)
@@ -470,13 +479,18 @@ def sort_machine():
     strdt = datetime.now().strftime("%Y_%m_%d_%H%M%S")
     cam_capture(camera, 'image.jpg', strdt+'.jpg')
     t_cam = time.time()
-    ocr_name = get_ocr_card_name('image.jpg')
-    if ocr_name == quit_word:
-      print("no card visible")
-      break
-    t_ocr = time.time()
-    cardv = find_card(card_dic, ocr_name)
-    t_find = time.time()
+    
+    if args.fs != '':
+      cardv = requests.post("http://192.168.178.70:5000/mtg_server", json = file2json("tcsm.jpg"))
+      print( cardv[1] )
+    else:
+      ocr_name = get_ocr_card_name('image.jpg')
+      if ocr_name == quit_word:
+        print("no card visible")
+        break
+      t_ocr = time.time()
+      cardv = find_card(card_dic, ocr_name)
+      t_find = time.time()
    
     if cardv[0] >= 0:
       os.rename(strdt+'.jpg', strdt+'_'+clean_str( cardv[1] )+'.jpg')
