@@ -129,8 +129,12 @@ def ocr_space_file(filename, overlay=False, api_key='helloworld', language='eng'
                           data=payload,
                           )
     #return r.content.decode()
-    j = r.json();
-    return j['ParsedResults'][0]['ParsedText'].partition('\n')[0]
+    if r.status_code == requests.codes.ok:
+      j = r.json();
+      return j['ParsedResults'][0]['ParsedText'].partition('\n')[0]
+    else:
+      print(f"request failed, status code={r.status_code}")
+    return "";
 
 # DRV8830
 #	Register 0: 	vvvvvvbb
