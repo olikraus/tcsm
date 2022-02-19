@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 #define FC_STR_MAX 1024
@@ -21,8 +22,7 @@ typedef struct find_card_struct fc_t;
 
 #define read_next(fc) (fc)->c = getc((fc)->fp);
 
-
-
+/*=====================================================*/
 
 /*
 https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C
@@ -62,6 +62,76 @@ lvint_t levenshtein(const uint16_t *s1, lvint_t s1len, const uint16_t  *s2, lvin
   return column[s1len];
 }
 
+/*=====================================================*/
+
+uint16_t **card_name_list = NULL;
+uint32_t card_name_cnt = 0;
+uint32_t card_name_max = 0;
+
+
+
+#define CNL_EXPAND (1024*4)
+
+void cnl_expand(void)
+{
+  if ( card_name_list == NULL )
+  {
+    card_name_list = (uint16_t **)malloc(CNL_EXPAND*sizeof(uint16_t *));
+    card_name_max = CNL_EXPAND;
+  }
+  else
+  {
+    card_name_list = (uint16_t **)realloc(card_name_list, (CNL_EXPAND+card_name_max)*sizeof(uint16_t *));
+    card_name_max += CNL_EXPAND;
+  }
+  if ( card_name_list == NULL )
+  {
+    exit(1);    // memory error
+  }
+}
+
+void cnl_add(uint16_t n, uint16_t len, const uint16_t *s)
+{
+  uint16_t i;
+  while( card_name_max <= card_name_cnt )
+    cnl_expand();
+  
+  card_name_list[card_name_cnt] = (uint16_t *)malloc(sizeof(uint16_t)*(len+2));
+  if ( card_name_list[card_name_cnt] == NULL )
+  {
+    exit(1);    // memory error
+  }
+    
+  
+  card_name_list[card_name_cnt][0] = n;
+  card_name_list[card_name_cnt][1] = len;
+  for( i = 0; i < len; i++ )
+    card_name_list[card_name_cnt][i+2] = s[i];
+  card_name_cnt++;
+}
+
+
+uint32_t cnl_match(uint16_t len, const uint16_t *s)
+{
+  uint32_t i;
+  uint32_t best_i = 0;
+  uint16_t distance;
+  uint16_t min_distance = 0xffff;
+  for( i = 0; i < card_name_cnt; i++ )
+  {
+      distance = levenshtein(card_name_list[i]+2, card_name_list[i][1], s, len, min_distance);
+      if ( min_distance > distance )
+      {
+        min_distance = distance;
+        best_i = i;
+        printf("cnl distance: %d\n", min_distance);
+      }
+  }
+  return best_i;
+}
+
+
+/*=====================================================*/
 
 
 int skip_space(fc_t *fc)
@@ -78,15 +148,9 @@ int skip_space(fc_t *fc)
 }
 
 #define from_hex(c) ((c)<='9'?(c)-'0':(c)-'a')
+#define test_0_return_0(fn) if ( fn == 0 ) return 0
 
-/*
-uint16_t from_hex(int c)
-{
-  if ( c >= '0' && c <= '9' )
-    return c-'0';
-  return c-'a';
-}
-*/
+//#define test_0_return_0(fn) fn
 
 int read_str(fc_t *fc)
 {
@@ -100,12 +164,7 @@ int read_str(fc_t *fc)
       {
         // read escape sequence
         read_next(fc);      // read next char into fc->c
-        if ( fc->c == '\"' )
-        {
-          fc->s[i] = fc->c;       // store current char 
-          read_next(fc);      // read next char into fc->c
-        }
-        else if ( fc->c == 'u' )
+        if ( fc->c == 'u' )
         {
           uint16_t v = 0;
           read_next(fc);      // read next char into fc->c
@@ -127,9 +186,14 @@ int read_str(fc_t *fc)
           
           fc->s[i] = v;        // store the unicode encoding
         }
+        else if ( fc->c == '\"' )
+        {
+          fc->s[i] = fc->c;       // store current char 
+          read_next(fc);      // read next char into fc->c
+        }
         else
         {
-          printf("Unknown str escape %c\n", fc->c);
+          //printf("Unknown str escape %c\n", fc->c);
           return 0;
         }
         
@@ -180,8 +244,7 @@ int read_number(fc_t *fc)
     }
     read_next(fc);      // read next char into fc->c
   }
-  if ( skip_space(fc) == 0 )
-    return 0;
+  test_0_return_0(skip_space(fc));
   return 1;
 }
 
@@ -200,30 +263,26 @@ int read_dic(fc_t *fc)
       if ( fc->c == '}' )
       {
         read_next(fc);      // read next char into fc->c
-        if ( skip_space(fc) == 0 )
-          return 0;
+        test_0_return_0(skip_space(fc));
         break;
       }
-      if ( read_str(fc) == 0 )
-        return puts("string expected"), 0;
-      if ( skip_space(fc) == 0 )
-        return 0;
+      test_0_return_0( read_str(fc) );
+      test_0_return_0(skip_space(fc));
       if ( fc->c != ':' )
       {
         printf("current char = %c\n", fc->c);
         return puts("':' expected"), 0;
       }
       read_next(fc);      // read next char into fc->c
-      if ( skip_space(fc) == 0 )
-        return 0;
-      if ( read_number(fc) == 0 )
-        return puts("number expected"), 0;
+      test_0_return_0(skip_space(fc));
+      test_0_return_0( read_number(fc));
       if ( fc->c == ',' )
       {
         read_next(fc);      // read next char into fc->c
-        if ( skip_space(fc) == 0 )
-          return 0;
+        test_0_return_0(skip_space(fc));
       }
+      
+      cnl_add(fc->n, fc->len, fc->s);
       
       distance = levenshtein(fc->s, fc->len, fc->m, fc->m_len, fc->min_distance);
       //distance = levenshtein(fc->m, fc->m_len, fc->s, fc->len, fc->min_distance);
@@ -248,7 +307,7 @@ int read_fp(fc_t *fc)
   return 1;
 }
 
-char read_buffer[BUFSIZ*4];  // ~ 2% improvement 
+char read_buffer[BUFSIZ*4];  // ~ 1%-2% improvement 
 
 void read_file(const char *filename, const char *match)
 {
@@ -270,6 +329,10 @@ void read_file(const char *filename, const char *match)
     fclose(fc.fp);
     printf("str_cnt=%u\n", fc.str_cnt);
     printf("max_len=%d\n", fc.max_len);
+    
+    for( int i = 0; i < 10; i++ )
+      cnl_match(fc.m_len, fc.m);
+
   }
 }
 

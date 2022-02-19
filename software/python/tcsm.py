@@ -162,20 +162,78 @@ def motor_run(adr,speed,dir):
 	bus = smbus.SMBus(1)
 	bus.write_byte_data(adr, 1, 0x80)	# clear any faults
 	bus.write_byte_data(adr, 0, speed*4 + 1+dir)	# drive
+
+class MCS: # motor control sequence
+  def __init__(self, adr, seq):
+    self.state = 0
+    self.next_time = 0
+    self.sequence = seq
+    self.jump_back = 0
+    self.repeat_cnt = 0
+    self.adr = adr
+  def start(self):
+    self.state = 0
+    self.next_time = time.time_ns()
+    self.jump_back = 0;
+    self.repeat_cnt = 0;
+    return True
+  def next(self):
+    if self.next_time < time.time_ns():
+      if self.state >= len(self.sequence):
+        return False
+      print(f"state: {self.state} cmd: {self.sequence[self.state][0]} time: {time.time_ns()}")
+      self.next_time = time.time_ns() + self.sequence[self.state][2]*1000000000
+      if self.sequence[self.state][0] == 8:
+        self.jump_back = self.state + 1
+        self.repeat_cnt = self.sequence[self.state][1]
+        print(f"state: {self.state} repeat_cnt set to {self.repeat_cnt}")
+        self.state += 1
+      elif self.sequence[self.state][0] == 9:
+        print(f"state: {self.state} repeat_cnt: {self.repeat_cnt}")
+        if self.repeat_cnt <= 0:
+          self.state += 1
+        else:
+          self.repeat_cnt -= 1
+          self.state = self.jump_back
+      elif self.sequence[self.state][0] == 0:
+        motor_run(self.adr,self.sequence[self.state][1],0)
+        self.state += 1
+      elif self.sequence[self.state][0] == 1:
+        motor_run(self.adr,self.sequence[self.state][1],1)
+        self.state += 1
+      elif self.sequence[self.state][0] == 2:
+        motor_coast(self.adr)
+        self.state += 1
+      elif self.sequence[self.state][0] == 3:
+        motor_break(self.adr)
+        self.state += 1
+      else:
+          self.state += 1
+    return True
 	
 # cnt: number of shakes for the eject motor
 # d1: forward drive duration
 # d2: backward drive duration
-def eject_motor_shake(cnt, d1, d2):
-	for i in range(cnt):
-		motor_run(eject_motor_adr, eject_motor_shake_speed, 0)
-		time.sleep(d1)
-		motor_break(eject_motor_adr)
-		time.sleep(0.01)
-		motor_run(eject_motor_adr, eject_motor_shake_speed, 1)
-		time.sleep(d2)
-		motor_break(eject_motor_adr)
-		time.sleep(0.01)
+def eject_motor_shake(cnt, d1, d2):  
+  v = [
+    [0, eject_motor_shake_speed, d1]
+    [3, 0, 0.01]
+    [1, eject_motor_shake_speed, d2]
+    [3, 0, 0.01]
+  ]
+  mcs = MCS(eject_motor_adr)
+  m = mcs.start()
+  while m:
+    m = mcs.next();
+#  for i in range(cnt):
+#    motor_run(eject_motor_adr, eject_motor_shake_speed, 0)
+#    time.sleep(d1)
+#    motor_break(eject_motor_adr)
+#    time.sleep(0.01)
+#    motor_run(eject_motor_adr, eject_motor_shake_speed, 1)
+#    time.sleep(d2)
+#    motor_break(eject_motor_adr)
+#    time.sleep(0.01)
 
 def card_eject():
 	# try to separate lowest card
