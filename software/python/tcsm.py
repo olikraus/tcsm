@@ -177,19 +177,6 @@ def eject_motor_shake(cnt, d1, d2):
 		motor_break(eject_motor_adr)
 		time.sleep(0.01)
 
-def clean_str(s):
-  t = ''
-  for c in s:
-    if c >= 'A' and c <=  'Z':
-      t += c
-    elif c >= 'a' and c <= 'z':
-      t+= c
-    elif c == ' ':
-      t+= c
-    elif c >= ' ':
-      t+='_'
-  return t
-  
 def card_eject():
 	# try to separate lowest card
 	eject_motor_shake(8, 0.05, 0.05)
@@ -323,6 +310,20 @@ def remove_barrel_distortion(img):
 	# here the undistortion will be computed
 	dst = cv2.undistort(src,cam,distCoeff)
 	return dst
+
+def clean_str(s):
+  t = ''
+  for c in s:
+    if c >= 'A' and c <=  'Z':
+      t += c
+    elif c >= 'a' and c <= 'z':
+      t+= c
+    elif c == ' ':
+      t+= c
+    elif c >= ' ':
+      t+='_'
+  return t
+  
 
 def read_file(filename):
 	f = open(filename)
