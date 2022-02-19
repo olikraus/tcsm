@@ -216,32 +216,6 @@ class MCS: # motor control sequence
       else:
           self.state += 1
     return True
-	
-# cnt: number of shakes for the eject motor
-# d1: forward drive duration
-# d2: backward drive duration
-def eject_motor_shake(cnt, d1, d2):  
-  v = [
-    [8, cnt-1, 0], # while
-    [0, eject_motor_shake_speed, d1],  # forward
-    [3, 0, 0.01],       # break
-    [1, eject_motor_shake_speed, d2],  # reverse
-    [3, 0, 0.01],        # break
-    [9, 0, 0] # jump back
-  ]
-  mcs = MCS(eject_motor_adr, v)
-  m = mcs.start()
-  while m:
-    m = mcs.next();
-#  for i in range(cnt):
-#    motor_run(eject_motor_adr, eject_motor_shake_speed, 0)
-#    time.sleep(d1)
-#    motor_break(eject_motor_adr)
-#    time.sleep(0.01)
-#    motor_run(eject_motor_adr, eject_motor_shake_speed, 1)
-#    time.sleep(d2)
-#    motor_break(eject_motor_adr)
-#    time.sleep(0.01)
 
 eject_motor_sequence = [
   [8, 8-1, 0], # while
@@ -271,69 +245,6 @@ eject_motor_sequence = [
 eject_mcs = MCS(eject_motor_adr, eject_motor_sequence)
 
 
-def card_eject():
-  # try to separate lowest card
-  eject_motor_sequence = [
-    [8, 8-1, 0], # while
-    [0, eject_motor_shake_speed, 0.05],  # forward
-    [3, 0, 0.01],       # break
-    [1, eject_motor_shake_speed, 0.05],  # reverse
-    [3, 0, 0.01],        # break
-    [9, 0, 0], # jump back
-    [8, 24-1, 0], # while
-    [0, eject_motor_shake_speed, 0.05],  # forward
-    [3, 0, 0.01],       # break
-    [1, eject_motor_shake_speed, 0.04],  # reverse
-    [3, 0, 0.01],        # break
-    [9, 0, 0], # jump back
-    [0, eject_motor_throw_out_speed, eject_motor_throw_out_time], # eject
-    [2, 0, 0.6], # coast
-    [1, 25, 0.1], # pullback
-    [8, 10-1, 0], # while
-    [0, eject_motor_shake_speed, 0.05],  # forward
-    [3, 0, 0.01],       # break
-    [1, eject_motor_shake_speed, 0.09],  # reverse
-    [3, 0, 0.01],        # break
-    [9, 0, 0], # jump back
-    [1, 25, 0.5], # pullback run
-    [2, 0, 0.1] # pullback coast
-  ]
-  eject_mcs = MCS(eject_motor_adr, eject_motor_sequence)
-  m = eject_mcs.start()
-  while m:
-    m = eject_mcs.next();
-  #eject_motor_shake(8, 0.05, 0.05)
-  #eject_motor_shake(24, 0.05, 0.04)
-
-  # throw out lowest card
-  #motor_run(eject_motor_adr, eject_motor_throw_out_speed, 0)
-  #time.sleep(eject_motor_throw_out_time)
-  #motor_coast(eject_motor_adr)
-  #time.sleep(0.6)
-
-  # pull back second lowest card
-  # motor_run(eject_motor_adr, 25, 1)
-  # motor_run(eject_motor_adr, 25, 1)
-  # time.sleep(0.1)
-  # eject_motor_shake(10, 0.05, 0.09)
-  # motor_run(eject_motor_adr, 25, 1)
-  # in parallel shake card in the sorter and pull back the second lowest card
-  #for i in range(6):
-  #	motor_run(sorter_motor_adr, 15, 0)
-  #	time.sleep(0.025)
-  #	motor_break(sorter_motor_adr)
-  #	time.sleep(0.01)
-  #	motor_run(sorter_motor_adr, 15, 1)
-  #	time.sleep(0.025)
-  #	motor_break(sorter_motor_adr)
-  #	time.sleep(0.01)
-  
-  # continue with pullback
-  # time.sleep(0.5)
-  # stop pullback
-  # motor_coast(eject_motor_adr)
-  # time.sleep(0.1)
-
 def card_sort(basket):
   dir = basket & 1
   if (basket & 2) == 0:
@@ -348,47 +259,13 @@ def card_sort(basket):
       [3, 0, 0.1],       # break
       [dir, sorter_motor_basket_0_1_speed, sorter_motor_basket_0_1_time], # run
       [2, 0, 0.1]       # coast
-    ]
-    
-    # try to move the the card a little bit into the desired direction
-    # motor_run(sorter_motor_adr,7,dir)
-    # time.sleep(0.04)
-    # motor_break(sorter_motor_adr)
-    # time.sleep(0.3)
-    # motor_run(sorter_motor_adr,7,1-dir)
-    # time.sleep(0.03)
-    # motor_break(sorter_motor_adr)
-    # time.sleep(0.1)
-  
-    # motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, dir)
-    # time.sleep(sorter_motor_basket_0_1_time)
-    # motor_coast(sorter_motor_adr)
-    # time.sleep(0.3)
-    
-    # do another attempt in cases that the first throwout didn't work
-    # motor_run(sorter_motor_adr,7,1-dir)
-    # time.sleep(0.03)
-    # motor_break(sorter_motor_adr)
-    # time.sleep(0.1)
-  
-    # motor_run(sorter_motor_adr, sorter_motor_basket_0_1_speed, dir)
-    # time.sleep(sorter_motor_basket_0_1_time)
-    # motor_coast(sorter_motor_adr)
-    # time.sleep(0.1)
+    ]    
   else:
     sorter_motor_sequence = [
       [dir, sorter_motor_basket_2_3_speed, sorter_motor_basket_2_3_time], # run
       [2, 0, 0.1]       # coast
     ]
   return sorter_motor_sequence
-  # sort_mcs = MCS(sorter_motor_adr, sorter_motor_sequence)
-  # m = sort_mcs.start()
-  # while m:
-  #   m = sort_mcs.next();      
-    #motor_run(sorter_motor_adr, sorter_motor_basket_2_3_speed, dir)
-    #time.sleep(sorter_motor_basket_2_3_time)
-    #motor_coast(sorter_motor_adr)
-    #time.sleep(0.1)
 
 # https://stackoverflow.com/questions/46390779/automatic-white-balancing-with-grayworld-assumption
 
@@ -636,10 +513,11 @@ def sort_machine():
   card_dic = read_json('mtg_card_dic.json')
   card_prop = read_json('mtg_card_prop.json')
 
+  m = eject_mcs.start()
+  while m:
+    m = eject_mcs.next();
+      
   for i in range(args.r):
-    m = eject_mcs.start()
-    while m:
-      m = eject_mcs.next();
 
     t = time.time()
     strdt = datetime.now().strftime("%Y_%m_%d_%H%M%S")
@@ -675,10 +553,13 @@ def sort_machine():
     #card_sort(basket_number)
 
     sort_mcs = MCS(sorter_motor_adr, card_sort(basket_number))
-    m = sort_mcs.start()
-    while m:
-      m = sort_mcs.next();      
+    # m = sort_mcs.start()
+    # while m:
+     #  m = sort_mcs.next();      
 
+    m1, m2 = sort_mcs.start(), eject_mcs.start()
+    while m1 or m2:
+      m1, m2 = sort_mcs.next(), eject_mcs.next()
     
     append_to_file(args.log, "cam: "+str(t_cam-t)+', ocr: ['+ocr_name+']/'+str(t_ocr - t_cam)+', find: '+str(t_find-t_ocr)+', basket: '+str(basket_number)  )
     
@@ -692,8 +573,13 @@ elif args.c == 'sort':
   sort_machine();
 elif args.c == 'eb':
   for i in range(args.r):
-    card_eject();
-    card_sort(args.b);
+    m = eject_mcs.start()
+    while m:
+      m = eject_mcs.next();
+    sort_mcs = MCS(sorter_motor_adr, card_sort(args.b))
+    m = sort_mcs.start()
+    while m:
+      m = sort_mcs.next();      
 elif args.c == 'em':
   motor_run(eject_motor_adr,args.ems,args.emd)
   time.sleep(args.emt/1000.0)
