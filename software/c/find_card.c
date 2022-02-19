@@ -248,7 +248,7 @@ int read_fp(fc_t *fc)
   return 1;
 }
 
-char read_buffer[BUFSIZ*16];  // ~ 2% improvement 
+char read_buffer[BUFSIZ*4];  // ~ 2% improvement 
 
 void read_file(const char *filename, const char *match)
 {
