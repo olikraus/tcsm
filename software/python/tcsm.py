@@ -59,6 +59,9 @@ jpeg_full_image_quality=10      # 0..100
 
 quit_word = 'tcsm'
 
+pipename="find_card_pipe"
+
+
 parser = argparse.ArgumentParser(description='Trading Card Sorting Machine Controller', formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('-c',
                     default='help',
@@ -422,7 +425,7 @@ def get_ocr_card_name(imagefile):
   return ocr_name
   
 # return a vector with the internal card id, the card name and the distance to the tesseract name
-def find_card(carddic, ocr_name):
+def find_card_old(carddic, ocr_name):
   if ocr_name == "":
     return [-1, 9999, ""]
   t = { 
@@ -458,6 +461,19 @@ def find_card(carddic, ocr_name):
       
   append_to_file(args.log, "--> "+ smin + " (" + str(carddic[smin]) + ")\n")
   return [carddic[smin], smin, dmin]
+
+def find_card(ocr_name):
+  print(f"find_card: search {ocr_name}")
+  f = open(pipename, "w")
+  f.write(json.dumps(cardname))
+  f.close()
+  f = open(pipename, "r")
+  v = json.load(f)
+  f.close();
+  print(f"find_card: result {v[1]}")
+  append_to_file(args.log, "find_card "+ ocr_name + " --> " + v[1] + ")\n")
+  print(v)
+
 
 def eval_cond(cond, prop):
   tc = prop["tc"]       # Creature
@@ -530,7 +546,8 @@ def sort_machine():
         print("no card visible")
         break
       t_ocr = time.time()
-      cardv = find_card(card_dic, ocr_name)
+      #cardv = find_card(card_dic, ocr_name)
+      cardv = find_card(ocr_name)
       t_find = time.time()
       print( cardv[1] )
     else:
@@ -539,7 +556,8 @@ def sort_machine():
         print("no card visible")
         break
       t_ocr = time.time()
-      cardv = find_card(card_dic, ocr_name)
+      #cardv = find_card(card_dic, ocr_name)
+      cardv = find_card(ocr_name)
       t_find = time.time()
    
     if cardv[0] >= 0:
