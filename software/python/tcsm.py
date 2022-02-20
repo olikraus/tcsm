@@ -121,7 +121,7 @@ def ocr_space_file(filename, overlay=False, api_key='helloworld', language='eng'
                     Defaults to 'en'.
     :return: Result in JSON format.
     """
-
+    print("request start...")
     payload = {'isOverlayRequired': overlay,
                'apikey': api_key,
                'language': language,
@@ -132,6 +132,7 @@ def ocr_space_file(filename, overlay=False, api_key='helloworld', language='eng'
                           data=payload,
                           )
     #return r.content.decode()
+    print("request completed")
     if r.status_code == requests.codes.ok:
       j = r.json();
       return j['ParsedResults'][0]['ParsedText'].partition('\n')[0]
@@ -465,14 +466,17 @@ def find_card_old(carddic, ocr_name):
 def find_card(ocr_name):
   print(f"find_card: search {ocr_name}")
   f = open(pipename, "w")
-  f.write(json.dumps(cardname))
+  f.write(json.dumps(ocr_name))
+  f.write("\n")
   f.close()
+  time.sleep(0.01)
   f = open(pipename, "r")
   v = json.load(f)
   f.close();
   print(f"find_card: result {v[1]}")
   append_to_file(args.log, "find_card "+ ocr_name + " --> " + v[1] + ")\n")
   print(v)
+  return v
 
 
 def eval_cond(cond, prop):
