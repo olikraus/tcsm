@@ -538,7 +538,6 @@ int wait_and_process_pipe(void)
   static char buf[FC_STR_MAX];
   FILE *fp;
   char *s;
-  uint32_t best_match_index = 0;
 
   fp = fopen(pipe_name, "r");
   if ( fp == NULL )
@@ -575,7 +574,7 @@ int wait_and_process_pipe(void)
   json_to_match_uint16(s+1);            // skip the first double quote
   //show_match_uint16();
   
-  best_match_index = cnl_match(match_uint16_len, match_uint16_string);
+  cnl_match(match_uint16_len, match_uint16_string);
 
   /* results from cnl_match() are also in global variables: 
     match_distance;
