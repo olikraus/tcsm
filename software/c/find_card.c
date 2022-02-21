@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -209,7 +210,8 @@ const char *uint16_to_json(uint16_t len, const uint16_t *s)
     {
       j+=sprintf(buf+j, "\\u%04x", s[i]);
     }
-  } 
+  }
+  buf[j] = '\0';
   return buf;
 }
 
@@ -571,7 +573,8 @@ int wait_and_process_pipe(void)
     return 0;
   }
   
-  printf("Received %s\n", s);
+  printf("Received %s ", s);
+  printf("Received len=%d\n", strlen(s));
   json_to_match_uint16(s+1);            // skip the first double quote
   //show_match_uint16();
   
