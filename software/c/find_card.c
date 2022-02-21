@@ -266,7 +266,8 @@ int json_to_match_uint16(const char *json_str)
       }
       else
       {
-        //printf("Unknown str escape %c\n", *s);
+        printf("Unknown str escape %c (%d)\n", *s, *s);
+        match_uint16_len = i;
         return 0;
       }
       
