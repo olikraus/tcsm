@@ -222,13 +222,13 @@ class MCS: # motor control sequence
     return True
 
 eject_motor_sequence = [
-  [8, 8-1, 0], # while
+  [8, 7-1, 0], # while
   [0, eject_motor_shake_speed, 0.05],  # forward
   [3, 0, 0.01],       # break
   [1, eject_motor_shake_speed, 0.05],  # reverse
   [3, 0, 0.01],        # break
   [9, 0, 0], # jump back
-  [8, 24-1, 0], # while
+  [8, 24-1, 0], # while  (was 24)
   [0, eject_motor_shake_speed, 0.05],  # forward
   [3, 0, 0.01],       # break
   [1, eject_motor_shake_speed, 0.04],  # reverse
@@ -237,16 +237,20 @@ eject_motor_sequence = [
   [0, eject_motor_throw_out_speed, eject_motor_throw_out_time], # eject
   [2, 0, 0.6], # coast
   [1, 25, 0.1], # pullback
-  [8, 10-1, 0], # while
+  [8, 6-1, 0], # while
   [0, eject_motor_shake_speed, 0.05],  # forward
   [3, 0, 0.01],       # break
   [1, eject_motor_shake_speed, 0.09],  # reverse
   [3, 0, 0.01],        # break
   [9, 0, 0], # jump back
-  [1, 25, 0.5], # pullback run
-  [2, 0, 0.1] # pullback coast
 ]
 eject_mcs = MCS(eject_motor_adr, eject_motor_sequence)
+
+eject_motor_pullback = [
+  [1, 25, 0.5], # pullback run
+  [2, 0, 0.01] # pullback coast
+]
+eject_pullback_mcs = MCS(eject_motor_adr, eject_motor_pullback)
 
 
 def card_sort(basket):
@@ -298,6 +302,10 @@ def remove_barrel_distortion(img):
 
 	width  = src.shape[1]
 	height = src.shape[0]
+
+	print(f"unbarrel: w={width} h={height}")
+
+	src = src[0:150, 0:width]               # look at the card name only
 
 	distCoeff = np.zeros((4,1),np.float64)
 
@@ -360,6 +368,8 @@ def file2json(filename):
   f.close()
   return json.dumps(encoded_string)
   
+#  imagename: image.jpg
+#  fullname: date/time without .jpg
 
 def cam_capture(cam, imagename, fullimname):
   rawCapture = PiRGBArray(cam)
@@ -367,24 +377,32 @@ def cam_capture(cam, imagename, fullimname):
   cam.capture(rawCapture, format="bgr")
   # remove the barrel distortion of the raspi cam
   #image = remove_barrel_distortion(white_balance(rawCapture.array))
+  cv2.imwrite(fullimname+'.jpg', rawCapture.array,[cv2.IMWRITE_JPEG_QUALITY, jpeg_full_image_quality, cv2.IMWRITE_JPEG_LUMA_QUALITY, jpeg_full_image_quality]);
   image = remove_barrel_distortion(rawCapture.array)
   # write a low quality picture of the scanned card
-  cv2.imwrite(fullimname, image,[cv2.IMWRITE_JPEG_QUALITY, jpeg_full_image_quality, cv2.IMWRITE_JPEG_LUMA_QUALITY, jpeg_full_image_quality]);
+  cv2.imwrite(fullimname+'_unbarrel.jpg', image,[cv2.IMWRITE_JPEG_QUALITY, jpeg_full_image_quality, cv2.IMWRITE_JPEG_LUMA_QUALITY, jpeg_full_image_quality]);
+  #cv2.imwrite(fullimname+'.jpg', image,[cv2.IMWRITE_JPEG_QUALITY, jpeg_full_image_quality, cv2.IMWRITE_JPEG_LUMA_QUALITY, jpeg_full_image_quality]);
   #image = rawCapture.array;
-  image = image[0:140, 0:1279]
+  #image = image[0:140, 0:1279]  # already done during barral removal
   # https://stackoverflow.com/questions/9480013/image-processing-to-improve-tesseract-ocr-accuracy
   image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
   #(thresh, blackAndWhiteImage) = cv2.threshold(image, 120, 255, cv2.THRESH_BINARY)
 
-  kernel = np.ones((3, 3), np.uint8)
-  img = cv2.dilate(image, kernel, iterations=1)
-  img = cv2.erode(img, kernel, iterations=1)	
+  cv2.imwrite(fullimname+'_gray.jpg', image,[cv2.IMWRITE_JPEG_QUALITY, jpeg_full_image_quality, cv2.IMWRITE_JPEG_LUMA_QUALITY, jpeg_full_image_quality]);
+
+  # removed, hoping this is still ok
+  # kernel = np.ones((3, 3), np.uint8)
+  # img = cv2.dilate(image, kernel, iterations=1)
+  # img = cv2.erode(img, kernel, iterations=1)	
+  
   #cv2.imwrite('pre_'+imagename, img);
-  img = cv2.medianBlur(img, 3)
+  # img = cv2.medianBlur(img, 3)
+  img = cv2.medianBlur(image, 3)
   #cv2.imwrite('pre2_'+imagename, img);  
   # the last argument: 0=lot of noise, 2: little bit noise, 4: no noise any more
   #img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 63, 2)
   
+  cv2.imwrite(fullimname+'_blur.jpg', img,[cv2.IMWRITE_JPEG_QUALITY, jpeg_full_image_quality, cv2.IMWRITE_JPEG_LUMA_QUALITY, jpeg_full_image_quality]);
   cv2.imwrite('raw_'+imagename, image);
   cv2.imwrite(imagename, img);
   #cv2.imwrite('image_bw_'+str(i)+'.jpg', blackAndWhiteImage);
@@ -469,7 +487,12 @@ def find_card(ocr_name):
   f.write(json.dumps(ocr_name))
   f.write("\n")
   f.close()
-  time.sleep(0.01)
+  #time.sleep(0.01)
+  
+  m = eject_pullback_mcs.start()
+  while m:
+    m = eject_pullback_mcs.next()
+    
   f = open(pipename, "r")
   v = json.load(f)
   f.close();
@@ -535,13 +558,13 @@ def sort_machine():
 
   m = eject_mcs.start()
   while m:
-    m = eject_mcs.next();
+    m = eject_mcs.next()
       
   for i in range(args.r):
 
     t = time.time()
     strdt = datetime.now().strftime("%Y_%m_%d_%H%M%S")
-    cam_capture(camera, 'image.jpg', strdt+'.jpg')
+    cam_capture(camera, 'image.jpg', strdt)
     t_cam = time.time()
     
     if args.key != '.':
